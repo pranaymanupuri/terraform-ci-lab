@@ -5,6 +5,9 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  AWS_REGION: "us-east-1"
+
 jobs:
   warmup:
     runs-on: ubuntu-latest
@@ -39,6 +42,13 @@ jobs:
         with:
           terraform_version: 1.8.5
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Terraform FMT (enforce style)
         run: terraform fmt -check -recursive
 
@@ -49,7 +59,7 @@ jobs:
         run: terraform validate -no-color
 
       - name: Terraform Plan
-        run: terraform plan -no-color -var="your_id4=1234" -out=tfplan.bin
+        run: terraform plan -no-color -var="your_id4=7890" -out=tfplan.bin
 
       - name: Terraform Show → plan.txt
         run: terraform show -no-color tfplan.bin | tee plan.txt
