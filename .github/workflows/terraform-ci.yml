@@ -1,0 +1,80 @@
+name: terraform-ci
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  warmup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create warmup artifact
+        run: |
+          echo "Hello from GitHub Actions!" > hello-7890.txt
+          echo "Run ID: $GITHUB_RUN_ID" >> hello-7890.txt
+          echo "SHA: $GITHUB_SHA" >> hello-7890.txt
+          cat hello-7890.txt
+          
+      - name: Upload warmup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello-7890
+          path: hello-7890.txt
+
+  terraform:
+    needs: warmup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform FMT (enforce style)
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        run: terraform plan -no-color -var="your_id4=1234" -out=tfplan.bin
+
+      - name: Terraform Show → plan.txt
+        run: terraform show -no-color tfplan.bin | tee plan.txt
+
+      - name: Extract plan summary
+        id: extract
+        run: |
+          SUMMARY=$(tail -n 10 plan.txt)
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf-plan-7890
+          path: plan.txt
+
+      - name: Comment plan summary on PR
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            **Terraform plan summary** — run #${{ github.run_number }}
+            ```terraform
+            ${{ steps.extract.outputs.summary }}
+            ```
