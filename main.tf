@@ -5,7 +5,7 @@ provider "aws" {
 # Simple S3 bucket with your unique ID
 resource "aws_s3_bucket" "lab_bucket" {
   bucket = "terraform-ci-lab-${var.your_id4}"
-  
+
   tags = {
     Project = "lab9"
     Owner   = var.your_id4
